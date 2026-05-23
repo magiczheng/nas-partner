@@ -106,7 +106,7 @@ export default function DDNSLogs() {
           body: { padding: 0 },
         }}
         extra={
-          <Popconfirm title="确认清理所有日志？">
+          <Popconfirm title="确认清理所有日志？" onConfirm={handleClear}>
             <Button icon={<DeleteOutlined />} danger>
               清理日志
             </Button>

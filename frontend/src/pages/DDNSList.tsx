@@ -194,7 +194,7 @@ export default function DDNSList() {
           <Tooltip title="编辑">
             <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditForm(record.id)} style={{ color: 'var(--text-secondary)' }} />
           </Tooltip>
-          <Popconfirm title="确认删除?">
+          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
             <Tooltip title="删除">
               <Button type="text" size="small" danger icon={<DeleteOutlined />} />
             </Tooltip>
