@@ -104,6 +104,7 @@ export default function DDNSFormModal({ open, editId, onClose, onSuccess }: DDNS
 
   // Build combined options
   const buildOptions = (family: 'ipv4' | 'ipv6') => {
+    const isIpv6 = family === 'ipv6';
     const detectedIP = family === 'ipv4' ? ipv4Detected : ipv6Detected;
     const detecting = family === 'ipv4' ? ipv4Detecting : ipv6Detecting;
     const ifaceList = family === 'ipv4' ? (netIfaces?.ipv4 ?? []) : (netIfaces?.ipv6 ?? []);
@@ -112,33 +113,49 @@ export default function DDNSFormModal({ open, editId, onClose, onSuccess }: DDNS
 
     const options: { value: string; label: string }[] = [];
 
-    // Auto option
-    options.push({
-      value: 'auto',
-      label: detectedIP ? `自动 (${detectedIP})` : detecting ? '自动 (检测中...)' : '自动',
-    });
-
-    // Interface options
-    for (const face of ifaceList) {
-      const ipLabel = face.address.join(', ');
+    // Auto option (IPv4 only — IPv6 不再支持自动检测)
+    if (!isIpv6) {
       options.push({
-        value: `${NETIF_PREFIX}${face.name}`,
-        label: `${face.name} (${ipLabel})`,
+        value: 'auto',
+        label: detectedIP ? `自动 (${detectedIP})` : detecting ? '自动 (检测中...)' : '自动',
       });
     }
 
-    // If netInterface mode but selected interface is not in current list, add it
-    if (selectedIface && !ifaceList.find(f => f.name === selectedIface)) {
-      options.push({
-        value: `${NETIF_PREFIX}${selectedIface}`,
-        label: `${selectedIface} (?）`,
-      });
+    // Interface options
+    for (const face of ifaceList) {
+      if (isIpv6 && face.address_detail && face.address_detail.length > 0) {
+        // IPv6: 每个地址独立一行，标注类型
+        for (const addr of face.address_detail) {
+          const isPermanent = addr.type === 'permanent';
+          options.push({
+            value: `${NETIF_PREFIX}${face.name}|${addr.address}`,
+            label: `${face.name} — ${addr.address} (${isPermanent ? 'secured' : 'temporary'})${isPermanent ? ' ★ 推荐' : ''}`,
+          });
+        }
+      } else {
+        // IPv4 或没有类型信息的 IPv6：沿用旧格式
+        const ipLabel = face.address.join(', ');
+        options.push({
+          value: `${NETIF_PREFIX}${face.name}`,
+          label: `${face.name} (${ipLabel})`,
+        });
+      }
+    }
+
+    // 如果已选网卡不在当前列表中，补一个占位选项
+    if (selectedIface) {
+      const matchIface = selectedIface.split('|')[0];
+      if (matchIface && !ifaceList.find(f => f.name === matchIface)) {
+        options.push({
+          value: `${NETIF_PREFIX}${selectedIface}`,
+          label: `${selectedIface}（?）`,
+        });
+      }
     }
 
     // Disabled option
     options.push({ value: 'disabled', label: '禁用' });
 
-    // Sort: auto first, then interfaces, then disabled
     return options;
   };
 
@@ -232,10 +249,6 @@ export default function DDNSFormModal({ open, editId, onClose, onSuccess }: DDNS
   useEffect(() => {
     if (ipv4Parsed.mode === 'auto' && open) detectIP('ipv4');
   }, [ipv4Parsed.mode, open, detectIP]);
-
-  useEffect(() => {
-    if (ipv6Parsed.mode === 'auto' && open) detectIP('ipv6');
-  }, [ipv6Parsed.mode, open, detectIP]);
 
 
   const handleFinish = async (values: Record<string, unknown>) => {

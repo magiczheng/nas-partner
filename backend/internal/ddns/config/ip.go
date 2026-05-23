@@ -314,8 +314,27 @@ func (conf *DnsConfig) getIpv6AddrFromInterface() string {
 		return ""
 	}
 
+	// 解析格式："en0|240e:..."（前端选择的具体地址），或旧格式 "en0"（使用第一个地址）
+	ifaceName := conf.Ipv6.NetInterface
+	specificAddr := ""
+	if parts := strings.SplitN(ifaceName, "|", 2); len(parts) == 2 {
+		ifaceName = parts[0]
+		specificAddr = parts[1]
+	}
+
 	for _, netInterface := range ipv6 {
-		if netInterface.Name == conf.Ipv6.NetInterface && len(netInterface.Address) > 0 {
+		if netInterface.Name == ifaceName && len(netInterface.Address) > 0 {
+			// 如果指定了具体地址，优先使用
+			if specificAddr != "" {
+				for _, addr := range netInterface.Address {
+					if addr == specificAddr {
+						return addr
+					}
+				}
+				util.Log("未找到指定的IPv6地址 %s, 使用第一个地址", specificAddr)
+				return netInterface.Address[0]
+			}
+
 			if conf.Ipv6.Ipv6Reg != "" {
 				if match, err := regexp.MatchString("@\\d", conf.Ipv6.Ipv6Reg); err == nil && match {
 					num, err := strconv.Atoi(conf.Ipv6.Ipv6Reg[1:])
@@ -381,94 +400,14 @@ func (conf *DnsConfig) getIpv6AddrManual() string {
 	return conf.Ipv6.Addr
 }
 
-var AutoGetIpv6Url = []string{
-	"https://6.ipw.cn",
-	"https://api6.ipify.org",
-	"https://ipv6.icanhazip.com",
-}
-
-func (conf *DnsConfig) getIpv6AddrAuto() string {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	type result struct {
-		url string
-		ip  string
-	}
-	first := make(chan result, 1)
-
-	var wg sync.WaitGroup
-	for _, url := range AutoGetIpv6Url {
-		if isURLBlocked(url) {
-			continue
-		}
-		wg.Add(1)
-		go func(u string) {
-			defer wg.Done()
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-			if err != nil {
-				return
-			}
-			resp, err := autoDetectClient.Do(req)
-			if err != nil {
-				if ctx.Err() != nil {
-					return
-				}
-				util.Log("通过接口获取IPv6失败! 接口地址: %s", u)
-				util.Log("异常信息: %s", err)
-				recordURLFailure(u)
-				return
-			}
-
-			body, err := io.ReadAll(io.LimitReader(resp.Body, 1024000))
-			resp.Body.Close()
-			if err != nil {
-				if ctx.Err() != nil {
-					return
-				}
-				util.Log("异常信息: %s", err)
-				recordURLFailure(u)
-				return
-			}
-			ip := findIPv6InText(string(body))
-			if ip == "" {
-				if ctx.Err() != nil {
-					return
-				}
-				util.Log("获取IPv6结果失败! 接口: %s ,返回值: %s", u, string(body))
-				recordURLFailure(u)
-				return
-			}
-			recordURLSuccess(u)
-			select {
-			case first <- result{u, ip}:
-			default:
-			}
-		}(url)
-	}
-
-	go func() {
-		wg.Wait()
-		close(first)
-	}()
-
-	r, ok := <-first
-	if ok {
-		return r.ip
-	}
-	return ""
-}
-
 func (conf *DnsConfig) GetIpv6Addr() (result string) {
 	switch conf.Ipv6.GetType {
 	case "netInterface":
 		return conf.getIpv6AddrFromInterface()
-	case "auto":
-		return conf.getIpv6AddrAuto()
 	case "manual":
 		return conf.getIpv6AddrManual()
 	default:
-		log.Println("IPv6's get IP method is unknown")
+		log.Println("IPv6's get IP method is unknown, supported: netInterface, manual")
 		return ""
 	}
 }

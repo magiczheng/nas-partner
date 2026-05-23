@@ -1,6 +1,8 @@
 package router
 
 import (
+	"os"
+
 	"nas-partner/backend/internal/config"
 	"nas-partner/backend/internal/database"
 	ddnshandler "nas-partner/backend/internal/ddns/handler"
@@ -30,6 +32,7 @@ func New(cfg *config.Config) *gin.Engine {
 		protected.Use(middleware.AuthRequired(cfg))
 		{
 			protected.GET("/me", handler.Me)
+			protected.PUT("/me/password", handler.ChangePassword)
 
 			ddns := protected.Group("/ddns")
 			{
@@ -48,6 +51,19 @@ func New(cfg *config.Config) *gin.Engine {
 					ddns.POST("/logs/cleanup", ddnshandler.CleanupLogs)
 			}
 		}
+	}
+
+	// Serve frontend static files (Docker / production)
+	static := "./static"
+	if _, err := os.Stat(static); err == nil {
+		r.NoRoute(func(c *gin.Context) {
+			path := c.Request.URL.Path
+			if _, err := os.Stat(static + path); os.IsNotExist(err) {
+				c.File(static + "/index.html")
+				return
+			}
+			c.File(static + path)
+		})
 	}
 
 	// Start DDNS scheduler

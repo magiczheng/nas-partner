@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Table, Card, Tag, Button, Space, Typography, message, Popconfirm } from 'antd';
+import { Table, Card, Tag, Button, Space, Typography, Popconfirm } from 'antd';
 import { ArrowLeftOutlined, DeleteOutlined } from '@ant-design/icons';
 import { ddns } from '../api/ddns';
 import type { DDNSRunLog } from '../api/ddns';
@@ -22,7 +22,7 @@ export default function DDNSLogs() {
     setLoading(true);
     ddns.listLogs(Number(id))
       .then(setLogs)
-      .catch(() => message.error('获取日志失败'))
+      .catch(() => {})
       .finally(() => setLoading(false));
   };
 
@@ -32,11 +32,8 @@ export default function DDNSLogs() {
     if (!id) return;
     try {
       await ddns.clearLogs(Number(id));
-      message.success('已清理所有日志');
       fetchLogs();
-    } catch {
-      message.error('清理失败');
-    }
+    } catch { /* handled */ }
   };
 
   const columns = [
@@ -45,47 +42,86 @@ export default function DDNSLogs() {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
-      render: (v: string) => new Date(v).toLocaleString('zh-CN'),
+      render: (v: string) => (
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
+          {new Date(v).toLocaleString('zh-CN')}
+        </span>
+      ),
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
       width: 90,
-      render: (v: string) => <Tag color={statusColors[v] || 'default'}>{v || '-'}</Tag>,
+      render: (v: string) => (
+        <Tag color={statusColors[v] || 'default'} style={{ borderRadius: 4, fontSize: 12 }}>
+          {v || '-'}
+        </Tag>
+      ),
     },
     {
       title: '信息',
       dataIndex: 'message',
       key: 'message',
       render: (v: string) => v ? (
-        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 'inherit' }}>{v}</pre>
+        <pre style={{
+          margin: 0,
+          whiteSpace: 'pre-wrap',
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 13,
+          color: 'var(--text-secondary)',
+          lineHeight: 1.6,
+        }}>
+          {v}
+        </pre>
       ) : '-',
     },
   ];
 
   return (
-    <Card
-      title={
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ddns')} type="text" />
-          <Typography.Title level={5} style={{ margin: 0 }}>执行日志</Typography.Title>
+    <div style={{ animation: 'fade-up 0.5s ease-out' }}>
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center" style={{ marginBottom: 4 }}>
+          <Button
+            icon={<ArrowLeftOutlined />}
+            onClick={() => navigate('/ddns')}
+            type="text"
+            style={{ color: 'var(--text-secondary)', marginLeft: -8 }}
+          />
+          <Typography.Title level={4} style={{ margin: 0, fontWeight: 600 }}>
+            执行日志
+          </Typography.Title>
         </Space>
-      }
-      extra={
-        <Popconfirm title="确认清理所有日志？" onConfirm={handleClear}>
-          <Button icon={<DeleteOutlined />} danger>清理日志</Button>
-        </Popconfirm>
-      }
-    >
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={logs}
-        loading={loading}
-        pagination={{ pageSize: 20, showSizeChanger: true }}
-        size="middle"
-      />
-    </Card>
+        <Typography.Text style={{ color: 'var(--text-muted)', marginTop: 4, display: 'block', fontSize: 14 }}>
+          DDNS 任务历史运行记录
+        </Typography.Text>
+      </div>
+
+      <Card
+        style={{
+          borderRadius: 12,
+          border: `1px solid var(--border)`,
+        }}
+        styles={{
+          body: { padding: 0 },
+        }}
+        extra={
+          <Popconfirm title="确认清理所有日志？">
+            <Button icon={<DeleteOutlined />} danger>
+              清理日志
+            </Button>
+          </Popconfirm>
+        }
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={logs}
+          loading={loading}
+          pagination={{ pageSize: 20, showSizeChanger: true }}
+          size="middle"
+        />
+      </Card>
+    </div>
   );
 }

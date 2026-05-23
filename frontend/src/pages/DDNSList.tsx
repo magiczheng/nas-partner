@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Table, Button, Card, Tag, Space, Switch, Popconfirm, message, Tooltip, Typography,
+  Table, Button, Card, Tag, Space, Switch, Popconfirm, Tooltip, Typography,
 } from 'antd';
 import {
   PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined, ReloadOutlined, HistoryOutlined,
@@ -37,7 +37,7 @@ export default function DDNSList() {
       const list = await ddns.listWithLogs();
       setData(list);
     } catch {
-      message.error('获取列表失败');
+      // handled by api client
     } finally {
       setLoading(false);
     }
@@ -48,37 +48,22 @@ export default function DDNSList() {
   const handleToggle = async (id: number) => {
     try {
       await ddns.toggle(id);
-      message.success('操作成功');
       fetchData();
-    } catch {
-      message.error('操作失败');
-    }
+    } catch { /* handled */ }
   };
 
   const handleRun = async (id: number) => {
     try {
-      const result = await ddns.run(id);
-      if (result.status === '成功') {
-        message.success('执行成功');
-      } else if (result.status === '失败') {
-        message.error('执行失败');
-      } else {
-        message.info('执行未改变');
-      }
+      await ddns.run(id);
       fetchData();
-    } catch {
-      message.error('执行失败');
-    }
+    } catch { /* handled */ }
   };
 
   const handleDelete = async (id: number) => {
     try {
       await ddns.delete(id);
-      message.success('已删除');
       fetchData();
-    } catch {
-      message.error('删除失败');
-    }
+    } catch { /* handled */ }
   };
 
   const openNewForm = () => {
@@ -91,6 +76,8 @@ export default function DDNSList() {
     setFormOpen(true);
   };
 
+  const accentColor = 'var(--accent)';
+
   const columns = [
     {
       title: '名称',
@@ -98,34 +85,46 @@ export default function DDNSList() {
       key: 'name',
       width: 150,
       render: (name: string, record: DDNSConfigWithLog) => (
-        <a onClick={() => openEditForm(record.id)} style={{ wordBreak: 'break-word' }}>{name}</a>
+        <a onClick={() => openEditForm(record.id)} style={{ wordBreak: 'break-word', color: accentColor }}>
+          {name}
+        </a>
       ),
     },
     {
       title: '当前 IPv4',
       key: 'current_ipv4',
       width: 140,
-      render: (_: unknown, record: DDNSConfigWithLog) => record.current_ipv4 || '-',
+      render: (_: unknown, record: DDNSConfigWithLog) => (
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
+          {record.current_ipv4 || '-'}
+        </span>
+      ),
     },
     {
       title: '当前 IPv6',
       key: 'current_ipv6',
       width: 280,
-      render: (_: unknown, record: DDNSConfigWithLog) => record.current_ipv6 || '-',
+      render: (_: unknown, record: DDNSConfigWithLog) => (
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
+          {record.current_ipv6 || '-'}
+        </span>
+      ),
     },
     {
       title: 'DNS 服务商',
       dataIndex: 'dns_provider',
       key: 'dns_provider',
       width: 140,
-      render: (v: string) => providerLabels[v] || v,
+      render: (v: string) => (
+        <Tag style={{ borderRadius: 4, fontSize: 12 }}>{providerLabels[v] || v}</Tag>
+      ),
     },
     {
       title: 'IPv4',
       key: 'ipv4',
       width: 60,
       render: (_: unknown, record: DDNSConfigWithLog) => (
-        <Tag color={record.ipv4_enabled ? 'blue' : 'default'}>
+        <Tag color={record.ipv4_enabled ? 'success' : 'default'} style={{ borderRadius: 4, fontSize: 12 }}>
           {record.ipv4_enabled ? 'ON' : 'OFF'}
         </Tag>
       ),
@@ -135,7 +134,7 @@ export default function DDNSList() {
       key: 'ipv6',
       width: 60,
       render: (_: unknown, record: DDNSConfigWithLog) => (
-        <Tag color={record.ipv6_enabled ? 'blue' : 'default'}>
+        <Tag color={record.ipv6_enabled ? 'success' : 'default'} style={{ borderRadius: 4, fontSize: 12 }}>
           {record.ipv6_enabled ? 'ON' : 'OFF'}
         </Tag>
       ),
@@ -145,15 +144,21 @@ export default function DDNSList() {
       dataIndex: 'domains',
       key: 'domains',
       render: (domains: string[]) => domains?.length
-        ? domains.map(d => <div key={d}>{d}</div>)
+        ? domains.map(d =>
+            <div key={d} style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              {d}
+            </div>
+          )
         : '-',
     },
     {
       title: '上次运行',
       key: 'last_run',
       width: 170,
-      render: (_: unknown, record: DDNSConfigWithLog) =>
-        record.latest_log ? new Date(record.latest_log.created_at).toLocaleString('zh-CN') : '-',
+      render: (_: unknown, record: DDNSConfigWithLog) => {
+        const time = record.latest_log ? new Date(record.latest_log.created_at).toLocaleString('zh-CN') : '-';
+        return <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{time}</span>;
+      },
     },
     {
       title: '状态',
@@ -164,7 +169,9 @@ export default function DDNSList() {
         const msg = record.latest_log?.message;
         return (
           <Tooltip title={msg || ''}>
-            <Tag color={statusColors[status!] || 'default'}>{status || '-'}</Tag>
+            <Tag color={statusColors[status!] || 'default'} style={{ borderRadius: 4, fontSize: 12 }}>
+              {status || '-'}
+            </Tag>
           </Tooltip>
         );
       },
@@ -176,37 +183,18 @@ export default function DDNSList() {
       render: (_: unknown, record: DDNSConfigWithLog) => (
         <Space size="small">
           <Tooltip title={record.enabled ? '禁用' : '启用'}>
-            <Switch
-              size="small"
-              checked={record.enabled}
-              onChange={() => handleToggle(record.id)}
-            />
+            <Switch size="small" checked={record.enabled} onChange={() => handleToggle(record.id)} />
           </Tooltip>
           <Tooltip title="立即执行">
-            <Button
-              type="text"
-              size="small"
-              icon={<PlayCircleOutlined />}
-              onClick={() => handleRun(record.id)}
-            />
+            <Button type="text" size="small" icon={<PlayCircleOutlined />} onClick={() => handleRun(record.id)} style={{ color: 'var(--text-secondary)' }} />
           </Tooltip>
           <Tooltip title="执行日志">
-            <Button
-              type="text"
-              size="small"
-              icon={<HistoryOutlined />}
-              onClick={() => navigate(`/ddns/${record.id}/logs`)}
-            />
+            <Button type="text" size="small" icon={<HistoryOutlined />} onClick={() => navigate(`/ddns/${record.id}/logs`)} style={{ color: 'var(--text-secondary)' }} />
           </Tooltip>
           <Tooltip title="编辑">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => openEditForm(record.id)}
-            />
+            <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEditForm(record.id)} style={{ color: 'var(--text-secondary)' }} />
           </Tooltip>
-          <Popconfirm title="确认删除?" onConfirm={() => handleDelete(record.id)}>
+          <Popconfirm title="确认删除?">
             <Tooltip title="删除">
               <Button type="text" size="small" danger icon={<DeleteOutlined />} />
             </Tooltip>
@@ -217,25 +205,44 @@ export default function DDNSList() {
   ];
 
   return (
-    <Card
-      title={<Typography.Title level={5} style={{ margin: 0 }}>DDNS 配置</Typography.Title>}
-      extra={
-        <Space>
-          <Button icon={<ReloadOutlined />} onClick={fetchData}>刷新</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openNewForm}>
-            新增配置
-          </Button>
-        </Space>
-      }
-    >
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={data}
-        loading={loading}
-        pagination={{ pageSize: 20, showSizeChanger: true }}
-        size="middle"
-      />
+    <div style={{ animation: 'fade-up 0.5s ease-out' }}>
+      <div style={{ marginBottom: 24 }}>
+        <Typography.Title level={4} style={{ margin: 0, fontWeight: 600 }}>
+          DDNS 配置
+        </Typography.Title>
+        <Typography.Text style={{ color: 'var(--text-muted)', marginTop: 4, display: 'block', fontSize: 14 }}>
+          管理动态 DNS 解析记录
+        </Typography.Text>
+      </div>
+
+      <Card
+        style={{
+          borderRadius: 12,
+          border: `1px solid var(--border)`,
+        }}
+        styles={{
+          body: { padding: 0 },
+        }}
+        extra={
+          <Space>
+            <Button icon={<ReloadOutlined />} onClick={fetchData}>
+              刷新
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={openNewForm}>
+              新增配置
+            </Button>
+          </Space>
+        }
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          pagination={{ pageSize: 20, showSizeChanger: true }}
+          size="middle"
+        />
+      </Card>
 
       <DDNSFormModal
         open={formOpen}
@@ -243,6 +250,6 @@ export default function DDNSList() {
         onClose={() => setFormOpen(false)}
         onSuccess={fetchData}
       />
-    </Card>
+    </div>
   );
 }

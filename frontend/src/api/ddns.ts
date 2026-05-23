@@ -66,9 +66,15 @@ export interface CreateDDNSConfig {
   interval?: number;
 }
 
+export interface AddressInfo {
+  address: string;
+  type: 'permanent' | 'temporary';
+}
+
 export interface NetInterface {
   name: string;
   address: string[];
+  address_detail?: AddressInfo[];
 }
 
 export interface TestIPRequest {

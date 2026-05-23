@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Form, Input, Button, Card, Typography, message } from 'antd';
+import { Form, Input, Button, Typography, message } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { auth } from '../api/auth';
 
@@ -24,54 +24,71 @@ export default function LoginPage({ onComplete }: Props) {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      }}
-    >
-      <Card
+    <div className="login-bg" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="glass-card"
         style={{
           width: 420,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
-          borderRadius: 12,
+          padding: 48,
+          boxShadow: '0 16px 48px rgba(0,0,0,0.15)',
+          animation: 'fade-up 0.6s ease-out',
         }}
       >
-        <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 8 }}>
-          NAS Partner
-        </Typography.Title>
-        <Typography.Text type="secondary" style={{ display: 'block', textAlign: 'center', marginBottom: 32 }}>
-          请登录以继续
-        </Typography.Text>
-        <Form
-          name="login"
-          onFinish={onFinish}
-          layout="vertical"
-          size="large"
-          autoComplete="off"
-        >
-          <Form.Item
-            name="username"
-            rules={[{ required: true, message: '请输入用户名' }]}
+        {/* Logo */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 14,
+              background: 'var(--accent-gradient)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#fff',
+              fontFamily: "'DM Sans', sans-serif",
+              margin: '0 auto 16px',
+            }}
           >
-            <Input prefix={<UserOutlined />} placeholder="用户名" />
+            NP
+          </div>
+          <Typography.Title level={3} style={{ margin: 0, letterSpacing: 0.5 }}>
+            NAS Partner
+          </Typography.Title>
+          <Typography.Text style={{ color: 'var(--text-muted)', marginTop: 6, display: 'block', fontSize: 14 }}>
+            请登录以继续
+          </Typography.Text>
+        </div>
+
+        <Form name="login" onFinish={onFinish} layout="vertical" size="large" autoComplete="off">
+          <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+            <Input
+              prefix={<UserOutlined style={{ color: 'var(--text-muted)' }} />}
+              placeholder="用户名"
+            />
           </Form.Item>
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: '请输入密码' }]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+          <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+            <Input.Password
+              prefix={<LockOutlined style={{ color: 'var(--text-muted)' }} />}
+              placeholder="密码"
+            />
           </Form.Item>
-          <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" block loading={loading}>
+          <Form.Item style={{ marginBottom: 0, marginTop: 8 }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              block
+              loading={loading}
+              size="large"
+              style={{ height: 48, fontSize: 16, fontWeight: 600, borderRadius: 10 }}
+            >
               登 录
             </Button>
           </Form.Item>
         </Form>
-      </Card>
+      </div>
     </div>
   );
 }
