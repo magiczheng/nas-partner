@@ -81,9 +81,6 @@ const lightTheme = {
       hoverBorderColor: 'rgba(20,184,166,0.5)',
       colorBorder: 'rgba(0,0,0,0.08)',
     },
-    Tag: {
-      colorBgContainer: 'transparent',
-    },
     Switch: {
       colorPrimary: '#14b8a6',
     },
@@ -161,9 +158,6 @@ const darkTheme = {
       activeBorderColor: '#2dd4bf',
       hoverBorderColor: 'rgba(45,212,191,0.5)',
       colorBorder: 'rgba(255,255,255,0.08)',
-    },
-    Tag: {
-      colorBgContainer: 'transparent',
     },
     Switch: {
       colorPrimary: '#2dd4bf',
