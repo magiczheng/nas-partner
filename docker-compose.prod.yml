@@ -1,6 +1,6 @@
 services:
   nas-partner:
-    image: magiczheng/nas-partner:latest
+    image: zhengyd0720/nas-partner:latest
     container_name: nas-partner
     ports:
       - "8080:8080"

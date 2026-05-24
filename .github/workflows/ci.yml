@@ -89,7 +89,7 @@ jobs:
         id: meta-dockerhub
         uses: docker/metadata-action@v6
         with:
-          images: ${{ env.DOCKERHUB_REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.DOCKERHUB_REGISTRY }}/zhengyd0720/nas-partner
           tags: |
             type=sha,format=short
             type=ref,event=branch
