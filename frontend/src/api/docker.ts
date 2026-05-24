@@ -3,11 +3,14 @@ import { api } from './client';
 export interface ContainerInfo {
   id: string;
   name: string;
-  image: string;
   status: string;
   state: string;
   ports: string[];
-  uptime: string;
+  cpu_percent: number;
+  memory_usage: number;
+  memory_limit: number;
+  network_rx: number;
+  network_tx: number;
 }
 
 export const docker = {

@@ -12,6 +12,7 @@ import (
 	"nas-partner/backend/internal/ddns/scheduler"
 	"nas-partner/backend/internal/handler"
 	"nas-partner/backend/internal/middleware"
+	"nas-partner/backend/internal/system"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,6 +40,7 @@ func New(cfg *config.Config) *gin.Engine {
 			protected.GET("/me", handler.Me)
 			protected.PUT("/me/password", handler.ChangePassword)
 			protected.PUT("/auth/refresh", handler.AuthRefresh)
+			protected.GET("/system/info", system.GetSystemInfo)
 			protected.GET("/docker/containers", dockerhandler.ListContainers)
 			protected.GET("/audit/logs", audit.ListLogs)
 
@@ -55,8 +57,8 @@ func New(cfg *config.Config) *gin.Engine {
 				ddns.GET("/net-interfaces", ddnshandler.ListNetInterfaces)
 				ddns.POST("/test-ip", ddnshandler.TestIP)
 				ddns.GET("/:id/logs", ddnshandler.ListRunLogs)
-					ddns.DELETE("/:id/logs", ddnshandler.ClearLogs)
-					ddns.POST("/logs/cleanup", ddnshandler.CleanupLogs)
+				ddns.DELETE("/:id/logs", ddnshandler.ClearLogs)
+				ddns.POST("/logs/cleanup", ddnshandler.CleanupLogs)
 			}
 		}
 	}

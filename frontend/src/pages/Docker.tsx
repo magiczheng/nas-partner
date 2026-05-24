@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Table, Card, Tag, Button, Typography, Space } from 'antd';
+import { Table, Card, Tag, Button, Typography, Space, Progress } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { docker } from '../api/docker';
 import type { ContainerInfo } from '../api/docker';
@@ -13,6 +13,30 @@ const stateColors: Record<string, string> = {
   removing: 'error',
   dead: 'error',
 };
+
+const stateLabels: Record<string, string> = {
+  running: '运行中',
+  exited: '已停止',
+  paused: '已暂停',
+  created: '已创建',
+  restarting: '重启中',
+  removing: '删除中',
+  dead: '异常',
+};
+
+function formatBytes(bytes: number): string {
+  if (bytes < 0) return '0 B/s';
+  const abs = bytes;
+  if (abs < 1024) return abs + ' B/s';
+  if (abs < 1024 * 1024) return (abs / 1024).toFixed(1) + ' KB/s';
+  return (abs / 1024 / 1024).toFixed(1) + ' MB/s';
+}
+
+function formatMemory(bytes: number): string {
+  const mb = bytes / 1024 / 1024;
+  if (mb < 1024) return mb.toFixed(0) + ' MB';
+  return (mb / 1024).toFixed(1) + ' GB';
+}
 
 export default function Docker() {
   const [loading, setLoading] = useState(false);
@@ -47,39 +71,19 @@ export default function Docker() {
       ),
     },
     {
-      title: '镜像',
-      dataIndex: 'image',
-      key: 'image',
-      width: 220,
-      render: (image: string) => (
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
-          {image}
-        </span>
-      ),
-    },
-    {
       title: '状态',
       key: 'state',
       width: 100,
       render: (_: unknown, record: ContainerInfo) => (
         <Tag color={stateColors[record.state] || 'default'} style={{ borderRadius: 4, fontSize: 12 }}>
-          {record.state}
+          {stateLabels[record.state] || record.state}
         </Tag>
-      ),
-    },
-    {
-      title: '运行信息',
-      dataIndex: 'status',
-      key: 'status',
-      width: 200,
-      render: (status: string) => (
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{status}</span>
       ),
     },
     {
       title: '端口',
       key: 'ports',
-      width: 200,
+      width: 180,
       render: (_: unknown, record: ContainerInfo) =>
         record.ports?.length
           ? record.ports.map((p) => (
@@ -90,21 +94,68 @@ export default function Docker() {
           : '-',
     },
     {
-      title: '运行时长',
-      key: 'uptime',
-      width: 150,
+      title: 'CPU',
+      key: 'cpu',
+      width: 100,
+      sorter: (a: ContainerInfo, b: ContainerInfo) => a.cpu_percent - b.cpu_percent,
+      render: (_: unknown, record: ContainerInfo) => {
+        const pct = record.cpu_percent || 0;
+        return (
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
+            {pct.toFixed(1)}%
+          </span>
+        );
+      },
+    },
+    {
+      title: '内存',
+      key: 'memory',
+      width: 180,
+      sorter: (a: ContainerInfo, b: ContainerInfo) => a.memory_usage - b.memory_usage,
+      render: (_: unknown, record: ContainerInfo) => {
+        const used = record.memory_usage || 0;
+        const limit = record.memory_limit || 0;
+        const usedMB = used / 1024 / 1024;
+        const limitMB = limit / 1024 / 1024;
+        const pct = limit > 0 ? (used / limit) * 100 : 0;
+        return (
+          <div style={{ minWidth: 120 }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)', marginBottom: 2 }}>
+              {formatMemory(used)}
+              {limit > 0 && <span style={{ color: 'var(--text-muted)' }}> / {formatMemory(limit)}</span>}
+            </div>
+            {limit > 0 && (
+              <Progress
+                percent={pct}
+                size="small"
+                showInfo={false}
+                strokeColor={pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#14b8a6'}
+                trailColor="var(--border)"
+              />
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: '网络 ↓',
+      key: 'network_rx',
+      width: 110,
+      sorter: (a: ContainerInfo, b: ContainerInfo) => a.network_rx - b.network_rx,
       render: (_: unknown, record: ContainerInfo) => (
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{record.uptime || '-'}</span>
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
+          {formatBytes(record.network_rx || 0)}
+        </span>
       ),
     },
     {
-      title: 'ID',
-      dataIndex: 'id',
-      key: 'id',
-      width: 130,
-      render: (id: string) => (
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-muted)' }}>
-          {id}
+      title: '网络 ↑',
+      key: 'network_tx',
+      width: 110,
+      sorter: (a: ContainerInfo, b: ContainerInfo) => a.network_tx - b.network_tx,
+      render: (_: unknown, record: ContainerInfo) => (
+        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: 'var(--text-secondary)' }}>
+          {formatBytes(record.network_tx || 0)}
         </span>
       ),
     },
