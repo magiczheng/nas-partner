@@ -2,9 +2,11 @@ package handler
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"time"
 
+	"nas-partner/backend/internal/audit"
 	"nas-partner/backend/internal/config"
 	"nas-partner/backend/internal/database"
 	"nas-partner/backend/internal/model"
@@ -66,10 +68,37 @@ func AuthLogin(c *gin.Context) {
 		return
 	}
 
+	ip := c.ClientIP()
+
+	// Rate limiting: check consecutive failures in the last 15 minutes
+	var lastSuccessTime string
+	_ = database.DB.QueryRow(
+		`SELECT COALESCE(MAX(created_at), '1970-01-01') FROM login_attempts WHERE username = ? AND success = 1`,
+		req.Username,
+	).Scan(&lastSuccessTime)
+
+	var recentFailures int
+	_ = database.DB.QueryRow(
+		`SELECT COUNT(*) FROM login_attempts
+		 WHERE username = ? AND success = 0
+		 AND created_at > MAX(?, datetime('now', '-15 minutes'))`,
+		req.Username, lastSuccessTime,
+	).Scan(&recentFailures)
+
+	if recentFailures >= 5 {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "账户已被锁定，请15分钟后重试"})
+		return
+	}
+
 	var user model.User
 	err := database.DB.QueryRow("SELECT id, username, password_hash FROM users WHERE username = ?", req.Username).
 		Scan(&user.ID, &user.Username, &user.PasswordHash)
 	if err == sql.ErrNoRows {
+		database.DB.Exec(
+			"INSERT INTO login_attempts (username, success, ip) VALUES (?, 0, ?)",
+			req.Username, ip,
+		)
+		audit.Log(req.Username, "login_failed", "用户不存在", ip)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
@@ -79,9 +108,20 @@ func AuthLogin(c *gin.Context) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+		database.DB.Exec(
+			"INSERT INTO login_attempts (username, success, ip) VALUES (?, 0, ?)",
+			req.Username, ip,
+		)
+		audit.Log(req.Username, "login_failed", "密码错误", ip)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
+
+	database.DB.Exec(
+		"INSERT INTO login_attempts (username, success, ip) VALUES (?, 1, ?)",
+		user.Username, ip,
+	)
+	audit.Log(user.Username, "login_success", "登录成功", ip)
 
 	token, err := generateToken(user.Username)
 	if err != nil {
@@ -90,6 +130,19 @@ func AuthLogin(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, model.AuthResponse{Token: token, Username: user.Username})
+}
+
+func AuthRefresh(c *gin.Context) {
+	username, _ := c.Get("username")
+
+	token, err := generateToken(username.(string))
+	if err != nil {
+		log.Printf("token refresh failed for %s: %v", username, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to refresh token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, model.AuthResponse{Token: token, Username: username.(string)})
 }
 
 func generateToken(username string) (string, error) {

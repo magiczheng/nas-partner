@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   LockOutlined,
   CloudServerOutlined,
+  ContainerOutlined,
   SunOutlined,
   MoonOutlined,
 } from '@ant-design/icons';
@@ -20,6 +21,7 @@ const { Header, Sider, Content } = Layout;
 const menuItems = [
   { key: '/', icon: <DashboardOutlined />, label: '控制台' },
   { key: '/ddns', icon: <CloudServerOutlined />, label: 'DDNS' },
+  { key: '/docker', icon: <ContainerOutlined />, label: 'Docker' },
 ];
 
 export default function AdminLayout() {

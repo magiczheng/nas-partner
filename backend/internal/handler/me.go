@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
+	"nas-partner/backend/internal/audit"
 	"nas-partner/backend/internal/database"
 	"nas-partner/backend/internal/model"
 
@@ -58,5 +59,6 @@ func ChangePassword(c *gin.Context) {
 		return
 	}
 
+	audit.Log(username.(string), "password_changed", "修改密码成功", c.ClientIP())
 	c.Status(http.StatusNoContent)
 }

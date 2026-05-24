@@ -10,6 +10,7 @@ type Config struct {
 	ServerPort string
 	DBPath     string
 	JWTSecret  string
+	DockerHost string
 }
 
 func Load() *Config {
@@ -19,6 +20,7 @@ func Load() *Config {
 		ServerPort: getEnv("SERVER_PORT", "8080"),
 		DBPath:     getEnv("DB_PATH", "./data/nas-partner.db"),
 		JWTSecret:  getEnv("JWT_SECRET", "change-me-in-production"),
+		DockerHost: getEnv("DOCKER_HOST", "unix:///var/run/docker.sock"),
 	}
 }
 

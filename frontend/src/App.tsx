@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage';
 import InitPage from './pages/InitPage';
 import DDNSList from './pages/DDNSList';
 import DDNSLogs from './pages/DDNSLogs';
+import Docker from './pages/Docker';
 
 type AppState = 'loading' | 'init' | 'login' | 'ready';
 
@@ -286,6 +287,7 @@ function AppInner() {
             <Route index element={<Home />} />
             <Route path="ddns" element={<DDNSList />} />
             <Route path="ddns/:id/logs" element={<DDNSLogs />} />
+            <Route path="docker" element={<Docker />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

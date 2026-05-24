@@ -2,8 +2,10 @@ package model
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
 
+	"nas-partner/backend/internal/crypto"
 	"nas-partner/backend/internal/database"
 )
 
@@ -64,6 +66,8 @@ func List() ([]*DDNSConfig, error) {
 			return nil, err
 		}
 		json.Unmarshal([]byte(domainsJSON), &c.Domains)
+		c.AccessKeyID, _ = crypto.DecryptSecret(c.AccessKeyID)
+		c.AccessKeySecret, _ = crypto.DecryptSecret(c.AccessKeySecret)
 		list = append(list, c)
 	}
 	return list, nil
@@ -91,10 +95,32 @@ func GetByID(id int64) (*DDNSConfig, error) {
 		return nil, err
 	}
 	json.Unmarshal([]byte(domainsJSON), &c.Domains)
+	c.AccessKeyID, _ = crypto.DecryptSecret(c.AccessKeyID)
+	c.AccessKeySecret, _ = crypto.DecryptSecret(c.AccessKeySecret)
 	return c, nil
 }
 
+func (c *DDNSConfig) encryptSensitiveFields() error {
+	var err error
+	if c.AccessKeyID != "" && !strings.HasPrefix(c.AccessKeyID, "ENC:") {
+		c.AccessKeyID, err = crypto.EncryptSecret(c.AccessKeyID)
+		if err != nil {
+			return err
+		}
+	}
+	if c.AccessKeySecret != "" && !strings.HasPrefix(c.AccessKeySecret, "ENC:") {
+		c.AccessKeySecret, err = crypto.EncryptSecret(c.AccessKeySecret)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *DDNSConfig) Create() error {
+	if err := c.encryptSensitiveFields(); err != nil {
+		return err
+	}
 	domainsJSON, _ := json.Marshal(c.Domains)
 	if c.TTL == "" {
 		c.TTL = "600"
@@ -118,6 +144,9 @@ func (c *DDNSConfig) Create() error {
 }
 
 func (c *DDNSConfig) Update() error {
+	if err := c.encryptSensitiveFields(); err != nil {
+		return err
+	}
 	domainsJSON, _ := json.Marshal(c.Domains)
 	_, err := database.DB.Exec(
 		`UPDATE ddns_configs SET

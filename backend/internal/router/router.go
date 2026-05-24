@@ -4,8 +4,10 @@ import (
 	"os"
 
 	"nas-partner/backend/internal/config"
+	"nas-partner/backend/internal/crypto"
 	"nas-partner/backend/internal/database"
 	ddnshandler "nas-partner/backend/internal/ddns/handler"
+	dockerhandler "nas-partner/backend/internal/docker"
 	"nas-partner/backend/internal/ddns/scheduler"
 	"nas-partner/backend/internal/handler"
 	"nas-partner/backend/internal/middleware"
@@ -20,6 +22,8 @@ func New(cfg *config.Config) *gin.Engine {
 
 	database.Init(cfg.DBPath)
 	handler.SetConfig(cfg)
+	crypto.SetKey(cfg.JWTSecret)
+	dockerhandler.SetDockerHost(cfg.DockerHost)
 
 	api := r.Group("/api")
 	{
@@ -33,6 +37,8 @@ func New(cfg *config.Config) *gin.Engine {
 		{
 			protected.GET("/me", handler.Me)
 			protected.PUT("/me/password", handler.ChangePassword)
+			protected.PUT("/auth/refresh", handler.AuthRefresh)
+			protected.GET("/docker/containers", dockerhandler.ListContainers)
 
 			ddns := protected.Group("/ddns")
 			{

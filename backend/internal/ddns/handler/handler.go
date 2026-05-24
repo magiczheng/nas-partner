@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
+	"nas-partner/backend/internal/audit"
 	"nas-partner/backend/internal/ddns/config"
 	ddnsmodel "nas-partner/backend/internal/ddns/model"
 	"nas-partner/backend/internal/ddns/scheduler"
@@ -47,6 +49,8 @@ func Create(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	username, _ := c.Get("username")
+	audit.Log(username.(string), "ddns_create", fmt.Sprintf("创建配置 '%s' (id=%d)", cfg.Name, cfg.ID), c.ClientIP())
 	c.JSON(http.StatusCreated, cfg)
 }
 
@@ -66,6 +70,8 @@ func Update(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	username, _ := c.Get("username")
+	audit.Log(username.(string), "ddns_update", fmt.Sprintf("更新配置 '%s' (id=%d)", cfg.Name, id), c.ClientIP())
 	c.JSON(http.StatusOK, cfg)
 }
 
@@ -79,6 +85,8 @@ func Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	username, _ := c.Get("username")
+	audit.Log(username.(string), "ddns_delete", fmt.Sprintf("删除配置 (id=%d)", id), c.ClientIP())
 	c.Status(http.StatusNoContent)
 }
 
@@ -93,6 +101,8 @@ func Toggle(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	username, _ := c.Get("username")
+	audit.Log(username.(string), "ddns_toggle", fmt.Sprintf("切换配置 (id=%d) 到 %v", id, cfg.Enabled), c.ClientIP())
 	c.JSON(http.StatusOK, cfg)
 }
 
@@ -107,6 +117,8 @@ func Run(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "配置未找到"})
 		return
 	}
+	username, _ := c.Get("username")
+	audit.Log(username.(string), "ddns_run", fmt.Sprintf("手动执行配置 (id=%d)", id), c.ClientIP())
 	c.JSON(http.StatusOK, result)
 }
 

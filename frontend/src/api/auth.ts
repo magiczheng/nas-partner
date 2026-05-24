@@ -18,4 +18,5 @@ export const auth = {
   me: () => api.get<{ username: string }>('/me'),
   changePassword: (oldPassword: string, newPassword: string) =>
     api.put<void>('/me/password', { old_password: oldPassword, new_password: newPassword }),
+  refresh: () => api.put<AuthResponse>('/auth/refresh', undefined),
 };
