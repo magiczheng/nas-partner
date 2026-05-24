@@ -3,6 +3,7 @@ package router
 import (
 	"os"
 
+	"nas-partner/backend/internal/audit"
 	"nas-partner/backend/internal/config"
 	"nas-partner/backend/internal/crypto"
 	"nas-partner/backend/internal/database"
@@ -39,6 +40,7 @@ func New(cfg *config.Config) *gin.Engine {
 			protected.PUT("/me/password", handler.ChangePassword)
 			protected.PUT("/auth/refresh", handler.AuthRefresh)
 			protected.GET("/docker/containers", dockerhandler.ListContainers)
+			protected.GET("/audit/logs", audit.ListLogs)
 
 			ddns := protected.Group("/ddns")
 			{
