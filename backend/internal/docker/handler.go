@@ -80,8 +80,13 @@ func ListContainers(c *gin.Context) {
 		return
 	}
 
-	list := make([]ContainerInfo, 0, len(result.Items))
-	for _, ct := range result.Items {
+	type containerEntry struct {
+		ctID string
+		info ContainerInfo
+	}
+
+	entries := make([]containerEntry, len(result.Items))
+	for i, ct := range result.Items {
 		name := ""
 		if len(ct.Names) > 0 {
 			name = strings.TrimPrefix(ct.Names[0], "/")
@@ -101,56 +106,72 @@ func ListContainers(c *gin.Context) {
 			id = id[:12]
 		}
 
-		info := ContainerInfo{
-			ID:     id,
-			Name:   name,
-			Status: ct.Status,
-			State:  string(ct.State),
-			Ports:  ports,
+		entries[i] = containerEntry{
+			ctID: ct.ID,
+			info: ContainerInfo{
+				ID:     id,
+				Name:   name,
+				Status: ct.Status,
+				State:  string(ct.State),
+				Ports:  ports,
+			},
 		}
+	}
 
-		// Get container stats with a prior sample for CPU% calculation.
-		// IncludePreviousSample makes the daemon collect two samples 1s apart.
-		resp, err := cli.ContainerStats(context.Background(), ct.ID, client.ContainerStatsOptions{
-			Stream:                 false,
-			IncludePreviousSample:  true,
-		})
-		if err == nil {
-			var s containerStatsJSON
-			if json.NewDecoder(resp.Body).Decode(&s) == nil {
-				info.MemoryUsage = int64(s.MemoryStats.Usage)
-				info.MemoryLimit = int64(s.MemoryStats.Limit)
-
-				cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage - s.PreCPUStats.CPUUsage.TotalUsage)
-				sysDelta := float64(s.CPUStats.SystemCPUUsage - s.PreCPUStats.SystemCPUUsage)
-				if sysDelta > 0 && s.CPUStats.OnlineCPUs > 0 {
-					info.CPUPercent = (cpuDelta / sysDelta) * float64(s.CPUStats.OnlineCPUs) * 100
-				}
-
-				var rx, tx uint64
-				for _, net := range s.Networks {
-					rx += net.RxBytes
-					tx += net.TxBytes
-				}
-
-				netCacheMu.Lock()
-				now := time.Now()
-				if prevRx, ok := prevNetRx[ct.ID]; ok {
-					elapsed := now.Sub(prevNetTime[ct.ID]).Seconds()
-					if elapsed > 0 {
-						info.NetworkRx = int64(float64(rx-prevRx) / elapsed)
-						info.NetworkTx = int64(float64(tx-prevNetTx[ct.ID]) / elapsed)
-					}
-				}
-				prevNetRx[ct.ID] = rx
-				prevNetTx[ct.ID] = tx
-				prevNetTime[ct.ID] = now
-				netCacheMu.Unlock()
+	var wg sync.WaitGroup
+	for i := range entries {
+		wg.Add(1)
+		go func(e *containerEntry) {
+			defer wg.Done()
+			resp, err := cli.ContainerStats(context.Background(), e.ctID, client.ContainerStatsOptions{
+				Stream:                false,
+				IncludePreviousSample: true,
+			})
+			if err != nil {
+				return
 			}
-			resp.Body.Close()
-		}
+			defer resp.Body.Close()
 
-		list = append(list, info)
+			var s containerStatsJSON
+			if json.NewDecoder(resp.Body).Decode(&s) != nil {
+				return
+			}
+
+			e.info.MemoryUsage = int64(s.MemoryStats.Usage)
+			e.info.MemoryLimit = int64(s.MemoryStats.Limit)
+
+			cpuDelta := float64(s.CPUStats.CPUUsage.TotalUsage - s.PreCPUStats.CPUUsage.TotalUsage)
+			sysDelta := float64(s.CPUStats.SystemCPUUsage - s.PreCPUStats.SystemCPUUsage)
+			if sysDelta > 0 && s.CPUStats.OnlineCPUs > 0 {
+				e.info.CPUPercent = (cpuDelta / sysDelta) * float64(s.CPUStats.OnlineCPUs) * 100
+			}
+
+			var rx, tx uint64
+			for _, net := range s.Networks {
+				rx += net.RxBytes
+				tx += net.TxBytes
+			}
+
+			netCacheMu.Lock()
+			now := time.Now()
+			if prevRx, ok := prevNetRx[e.ctID]; ok {
+				elapsed := now.Sub(prevNetTime[e.ctID]).Seconds()
+				if elapsed > 0 {
+					e.info.NetworkRx = int64(float64(rx-prevRx) / elapsed)
+					e.info.NetworkTx = int64(float64(tx-prevNetTx[e.ctID]) / elapsed)
+				}
+			}
+			prevNetRx[e.ctID] = rx
+			prevNetTx[e.ctID] = tx
+			prevNetTime[e.ctID] = now
+			netCacheMu.Unlock()
+		}(&entries[i])
+	}
+	wg.Wait()
+
+	list := make([]ContainerInfo, len(entries))
+	for i, e := range entries {
+		list[i] = e.info
 	}
 
 	c.JSON(http.StatusOK, list)
